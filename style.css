@@ -1,0 +1,54 @@
+/* Mobile-first, clean: base = phone. Desktop only widens and breathes. No frameworks, no fonts to download. */
+*{box-sizing:border-box}
+:root{--bg:#0f0f14;--card:#1b1b24;--ink:#f5f2ea;--mut:#a9a4b8;--green:#2ee06b;--red:#ff4d6d;--gold:#ffc93c;--vio:#8b5cf6;--line:#2c2c3a}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;min-height:100vh}
+.top{position:sticky;top:0;z-index:5;background:#12121ae6;backdrop-filter:blur(8px);padding:12px 14px 8px;border-bottom:1px solid var(--line)}
+.logo{font-weight:900;letter-spacing:.08em;font-size:15px}
+.stats{display:flex;gap:12px;flex-wrap:wrap;font-size:13px;color:var(--mut);margin-top:4px}.stats b{color:var(--ink)}
+.lvlbar,.progress{height:6px;background:var(--line);border-radius:99px;overflow:hidden;margin-top:8px}
+.lvlbar div,.progress div{height:100%;background:linear-gradient(90deg,var(--vio),var(--gold));transition:width .3s}
+main{max-width:680px;margin:0 auto;padding:16px 12px 32px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:20px;padding:16px;box-shadow:0 10px 40px #0008}
+h1{font-size:24px;line-height:1.15;margin:0 0 8px}h1 span{color:var(--gold)}
+.sub,.hint{color:var(--mut);font-size:14px}
+label{display:block;margin:14px 0 4px;font-weight:700;font-size:15px}
+input,select,textarea{width:100%;margin-top:6px;padding:13px;border-radius:12px;border:1px solid #3a3a4a;background:#12121a;color:var(--ink);font:inherit;font-size:16px}
+textarea{resize:vertical}
+button{border:0;border-radius:12px;padding:13px 14px;font:inherit;font-weight:800;cursor:pointer;background:#2c2c3a;color:var(--ink);min-height:48px}
+button:hover{filter:brightness(1.15)}button:disabled{opacity:.5}
+.big{width:100%;margin-top:16px;padding:16px;background:linear-gradient(90deg,var(--vio),#ec4899);font-size:18px}
+.row{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}.chip{background:#252536}
+.grid2{display:grid;grid-template-columns:1fr;gap:0 12px}
+.check{display:flex;gap:8px;align-items:center}.check input{width:auto}
+.hidden{display:none!important}
+.error{color:var(--red);font-weight:700;min-height:1em;font-size:14px}
+.loader{font-size:48px;animation:spin 1.2s linear infinite;text-align:center}@keyframes spin{to{transform:rotate(360deg)}}
+.meta{display:flex;justify-content:space-between;color:var(--mut);font-size:13px;gap:8px}
+.qcard{min-height:160px;display:grid;place-items:center;padding:8px;text-align:center;font-size:21px;font-weight:800;animation:pop .25s ease;touch-action:pan-y}
+@keyframes pop{from{transform:scale(.96);opacity:.4}}
+.tf{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:12px 0}
+.true,.false{padding:20px 10px;font-size:20px}.true{background:#12351f;border:2px solid var(--green)}.false{background:#3a1220;border:2px solid var(--red)}
+.keys{text-align:center;color:var(--mut);font-size:12px}
+.feedback{padding:14px;border-radius:12px;font-weight:700;text-align:center}
+.feedback.ok{background:#12351f;border:1px solid var(--green)}.feedback.bad{background:#3a1220;border:1px solid var(--red)}
+.xppop{height:24px;text-align:center;color:var(--gold);font-weight:900;font-size:20px}
+.cardkicker{text-align:center;color:var(--gold);letter-spacing:.15em;font-weight:900;font-size:13px}
+.loretext{font-size:18px;line-height:1.7;background:#12121a;border:1px solid #3a3a4a;border-radius:14px;padding:16px;white-space:pre-wrap}
+.statgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px;text-align:center;margin:16px 0}
+.statgrid b{display:block;font-size:20px}.statgrid span{color:var(--mut);font-size:12px}
+.clozescore{font-weight:800;color:var(--gold);min-height:1.5em}
+input.blank{display:inline-block;width:auto;min-width:64px;margin:2px 1px;padding:6px 8px;border:0;border-bottom:2px solid var(--gold);border-radius:6px;background:#0f0f16;text-align:center;font-weight:800}
+input.blank.correct{border-color:var(--green);color:var(--green)}
+input.blank.wrong{border-color:var(--red);color:var(--red)}
+input.blank.revealed{border-color:var(--mut);color:var(--mut)}
+details{margin-top:14px;border:1px solid var(--line);border-radius:14px;padding:12px}
+details summary{font-weight:900;cursor:pointer}
+details pre{white-space:pre-wrap;word-break:break-word;background:#12121a;border:1px solid #3a3a4a;border-radius:12px;padding:12px;max-height:320px;overflow:auto;font-size:13px;line-height:1.45}
+footer{text-align:center;color:var(--mut);font-size:13px;padding:0 16px 30px}a{color:var(--gold)}
+.shake{animation:shake .3s}@keyframes shake{25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
+/* Desktop enhancement only — nothing here changes the phone layout's logic. */
+@media(min-width:640px){
+  main{padding:24px 16px 48px}.card{padding:24px}h1{font-size:30px}
+  .grid2{grid-template-columns:1fr 1fr}.statgrid{grid-template-columns:repeat(4,1fr)}
+  .qcard{font-size:24px;min-height:190px}.true,.false{padding:24px}
+}

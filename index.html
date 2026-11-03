@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Lore Rush — silly True/False, stupidly addictive</title>
+<meta name="description" content="Paste lore, generate throwaway True/False questions with OpenRouter, answer fast, unlock the lore card.">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="top">
+  <div class="logo">⚡ LORE RUSH</div>
+  <div class="stats" aria-label="Your score">
+    <span>⭐ <b id="xp">0</b> XP</span>
+    <span>LVL <b id="level">1</b> <small id="title">Newbie</small></span>
+    <span>🔥 <b id="streak">0</b></span>
+    <span>🎯 <b id="accuracy">—</b></span>
+  </div>
+  <div class="lvlbar"><div id="lvlFill"></div></div>
+</header>
+
+<main>
+  <!-- SETUP -->
+  <section id="setup" class="card">
+    <h1>Paste a paragraph. Get silly scenarios.<br><span>Answer fast. Unlock the cloze card.</span></h1>
+    <p class="sub">The silly questions are use-case scenarios <em>of your paragraph</em> — dressed up in a lore world, but testing the paragraph, not the lore. Then the paragraph itself becomes the cloze card at the end. Throwaway questions, no saving, just a dopamine loop. Your key never leaves your browser except to OpenRouter.</p>
+
+    <label>1 · Paragraph material — the stuff to learn
+      <textarea id="paragraph" rows="5" placeholder="Paste the paragraph you actually want to learn, word for word…"></textarea>
+    </label>
+
+    <label>2 · Lore book — inspiration for the scenarios (flavor only, not facts)
+      <select id="library"></select>
+    </label>
+    <div class="row">
+      <button type="button" class="chip" data-sample="cat">🐱 Library Cat</button>
+      <button type="button" class="chip" data-sample="moon">🌙 Moon Heist</button>
+      <button type="button" class="chip" data-sample="soup">🍜 Soup Wizard</button>
+      <button type="button" id="saveLore">＋ Save this lore</button>
+    </div>
+    <label>Lore text
+      <textarea id="lore" rows="4" placeholder="Paste worldbuilding, a character, a setting… or leave blank for plain silly scenarios."></textarea>
+    </label>
+    <p class="hint">Rule the model must follow: lore sets the scene, the paragraph sets the answer. A scenario is TRUE only if it correctly applies the paragraph.</p>
+
+    <details open>
+      <summary>✏️ Prompt — visible &amp; editable</summary>
+      <p class="hint">This is exactly what gets sent on the first attempt, except the {placeholders} get filled in with your paragraph, lore, count, and previous questions. Edit it, and it stays saved on this device. If a model won't return JSON, try shortening the paragraph, switching models, or adding: "Your entire reply must be ONLY the JSON array."</p>
+      <label>System prompt
+        <textarea id="systemPrompt" rows="9"></textarea>
+      </label>
+      <label>User prompt template — placeholders: {paragraph} {lore} {count} {previous} {seed}
+        <textarea id="userPrompt" rows="9"></textarea>
+      </label>
+      <div class="row">
+        <button type="button" id="previewPrompt">Preview final prompt</button>
+        <button type="button" id="resetPrompt">Reset prompt</button>
+      </div>
+    </details>
+    <details id="debugBox" class="hidden">
+      <summary>Last raw model reply / prompt preview</summary>
+      <pre id="rawReply"></pre>
+    </details>
+
+    <label>OpenRouter API key
+      <input id="apiKey" type="password" placeholder="sk-or-…" autocomplete="off">
+    </label>
+    <p class="hint">Get one at <a href="https://openrouter.ai/keys" target="_blank" rel="noopener">openrouter.ai/keys</a>. Stored only in this browser (localStorage). No server, no database.</p>
+
+    <div class="grid2">
+      <label>Model
+        <input id="model" list="models" placeholder="openai/gpt-oss-20b:free">
+        <datalist id="models"></datalist>
+      </label>
+      <label>Batch size
+        <select id="batch">
+          <option value="10">10 questions</option>
+          <option value="20" selected>20 questions</option>
+          <option value="50">50 questions</option>
+        </select>
+      </label>
+    </div>
+    <div class="grid2">
+      <label>Silliness
+        <select id="silly">
+          <option value="mild">Mildly silly</option>
+          <option value="unhinged" selected>Unhinged</option>
+        </select>
+      </label>
+      <label class="check"><input type="checkbox" id="endless" checked> ∞ Endless — auto-refill when low</label>
+    </div>
+
+    <div class="row">
+      <button type="button" id="fetchModels">↻ Load models</button>
+      <button type="button" id="demo">Play demo (no key)</button>
+    </div>
+    <button type="button" id="generate" class="big">Generate &amp; Play →</button>
+    <p id="setupError" class="error" role="alert"></p>
+  </section>
+
+  <!-- LOADING -->
+  <section id="loading" class="card hidden">
+    <div class="loader">🌀</div>
+    <h2>Summoning silly questions…</h2>
+    <p id="loadingMsg">Asking your model to be funny and factual.</p>
+  </section>
+
+  <!-- PLAY -->
+  <section id="play" class="card hidden">
+    <div class="meta">
+      <span id="qCount">Q 1 / 20</span>
+      <span id="queue">📦 20 left</span>
+      <span id="qTimer">⏱ 10s</span>
+    </div>
+    <div class="progress"><div id="progFill"></div></div>
+    <div id="qCard" class="qcard">
+      <p id="question" aria-live="polite"></p>
+    </div>
+    <div class="tf">
+      <button type="button" id="btnTrue" class="true">✓ TRUE</button>
+      <button type="button" id="btnFalse" class="false">✗ FALSE</button>
+    </div>
+    <p class="keys">Keys: <kbd>T</kbd> / <kbd>F</kbd> &nbsp;·&nbsp; <kbd>←</kbd> False, <kbd>→</kbd> True &nbsp;·&nbsp; <kbd>Space</kbd> Next</p>
+    <div id="feedback" class="feedback hidden" aria-live="polite"></div>
+    <div class="row">
+      <button type="button" id="nextBtn" class="hidden">Next →</button>
+      <button type="button" id="skipBtn">Skip</button>
+      <button type="button" id="revealBtn">🏁 End &amp; open cloze card</button>
+    </div>
+    <div id="xpPop" class="xppop"></div>
+  </section>
+
+  <!-- CLOZE CARD -->
+  <section id="loreCard" class="card hidden">
+    <p class="cardkicker">✦ CLOZE CARD UNLOCKED ✦</p>
+    <h2 id="cardTitle">Now prove you learned it</h2>
+    <p class="sub">Fill each blank from memory, then check. Tap Reveal all only if you're stuck — revealed blanks earn no XP.</p>
+    <p id="clozeText" class="loretext"></p>
+    <p id="clozeScore" class="clozescore"></p>
+    <div class="row">
+      <button type="button" id="checkCloze">Check my recall</button>
+      <button type="button" id="revealCloze">Reveal all</button>
+    </div>
+    <div class="statgrid">
+      <div><b id="statXp">+0</b><span>XP this run</span></div>
+      <div><b id="statAcc">—</b><span>accuracy</span></div>
+      <div><b id="statStreak">0</b><span>best streak</span></div>
+      <div><b id="statAnswered">0</b><span>answered</span></div>
+    </div>
+    <button type="button" id="moreBtn" class="big">More scenarios, same paragraph →</button>
+    <button type="button" id="newLoreBtn">New paragraph</button>
+  </section>
+</main>
+
+<footer>Ultrasmall · no build · no backend · your key stays in your browser · questions are throwaway by design</footer>
+<script type="module" src="js/main.js"></script>
+</body>
+</html>
