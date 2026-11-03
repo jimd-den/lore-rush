@@ -72,23 +72,14 @@
         <input id="model" list="models" placeholder="openai/gpt-oss-20b:free">
         <datalist id="models"></datalist>
       </label>
-      <label>Batch size
-        <select id="batch">
-          <option value="10">10 questions</option>
-          <option value="20" selected>20 questions</option>
-          <option value="50">50 questions</option>
-        </select>
-      </label>
-    </div>
-    <div class="grid2">
       <label>Silliness
         <select id="silly">
           <option value="mild">Mildly silly</option>
           <option value="unhinged" selected>Unhinged</option>
         </select>
       </label>
-      <label class="check"><input type="checkbox" id="endless" checked> ∞ Endless — auto-refill when low</label>
     </div>
+    <p class="hint">No batches: questions are made <b>one at a time, in the background</b> — you answer the first while the next ones are being generated. Tap End anytime to open the cloze card.</p>
 
     <div class="row">
       <button type="button" id="fetchModels">↻ Load models</button>
@@ -108,8 +99,8 @@
   <!-- PLAY -->
   <section id="play" class="card hidden">
     <div class="meta">
-      <span id="qCount">Q 1 / 20</span>
-      <span id="queue">📦 20 left</span>
+      <span id="qCount">Q 1</span>
+      <span id="queue">⏳ next: generating</span>
       <span id="qTimer">⏱ 10s</span>
     </div>
     <div class="progress"><div id="progFill"></div></div>

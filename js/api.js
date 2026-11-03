@@ -23,7 +23,7 @@ export const DEFAULT_USER_TEMPLATE = `PARAGRAPH MATERIAL (this is what is being 
 LORE WORLD (inspiration / dressing only, never a source of answers):
 {lore}
 
-Write {count} NEW scenario questions. Avoid repeating these: {previous}
+Write {count} NEW scenario question(s). Avoid repeating these: {previous}
 Seed: {seed}`;
 
 export function buildMessages({ system, userTemplate, paragraph, lore, count, previous = [] }) {

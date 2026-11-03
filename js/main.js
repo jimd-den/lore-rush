@@ -8,7 +8,7 @@ const $ = (id) => document.getElementById(id);
 const els = {
   setup: $("setup"), loading: $("loading"), play: $("play"), loreCard: $("loreCard"),
   lore: $("lore"), paragraph: $("paragraph"), library: $("library"), apiKey: $("apiKey"), model: $("model"), models: $("models"),
-  batch: $("batch"), silly: $("silly"), endless: $("endless"), setupError: $("setupError"),
+  silly: $("silly"), setupError: $("setupError"),
   systemPrompt: $("systemPrompt"), userPrompt: $("userPrompt"), loadingMsg: $("loadingMsg"),
   debugBox: $("debugBox"), rawReply: $("rawReply"),
   xp: $("xp"), level: $("level"), title: $("title"), streak: $("streak"), accuracy: $("accuracy"), lvlFill: $("lvlFill"),
@@ -20,7 +20,10 @@ const els = {
 
 let totals = loadTotals();
 let queue = [], asked = [], current = null, startMs = 0, timer = null, answeredNow = false;
-let generating = false, runStart = null, isDemo = false, touchX = null;
+let runStart = null, isDemo = false, touchX = null;
+// One-at-a-time async: a run is identified by runId, so a stale fetch from
+// an ended run can never land in the new run's queue.
+let runId = 0, runActive = false, fetching = false, waiting = false;
 let clozeInputs = [], awardedCloze = new Set();
 
 function show(name) {
@@ -112,7 +115,7 @@ $("previewPrompt").addEventListener("click", () => {
   const msgs = buildMessages({
     system: els.systemPrompt.value, userTemplate: els.userPrompt.value,
     paragraph: els.paragraph.value, lore: els.lore.value,
-    count: Number(els.batch.value), previous: asked.map((q) => q.q),
+    count: 1, previous: asked.map((q) => q.q),
   });
   els.rawReply.textContent = msgs.map((m) => `${m.role.toUpperCase()}:\n${m.content}`).join("\n\n---\n\n");
   els.debugBox.classList.remove("hidden");
@@ -126,7 +129,10 @@ $("resetPrompt").addEventListener("click", () => {
   els.setupError.textContent = "Prompt reset to defaults.";
 });
 
-// --- Generation ---
+// --- Generation: one question at a time, asynchronously ---
+// Only the first question blocks (on the loading screen). After that,
+// prefetch() runs in the background, keeping up to 3 questions ready while
+// you answer — never a batch, never a wait for 20 questions at once.
 async function startRun(demo) {
   isDemo = demo;
   const paragraph = els.paragraph.value.trim();
@@ -135,22 +141,34 @@ async function startRun(demo) {
   localStorage.setItem("lorerush:key", els.apiKey.value.trim());
   localStorage.setItem("lorerush:model", els.model.value.trim());
   savePrompt();
+  runId += 1;
+  runActive = true;
+  fetching = false;
+  waiting = false;
   runStart = { ...totals, answered: totals.answered, correct: totals.correct };
   asked = []; queue = [];
-  els.loadingMsg.textContent = "Asking your model to be funny and factual.";
+  if (demo) {
+    queue = [...DEMO_QUESTIONS].sort(() => Math.random() - 0.5);
+    show("play");
+    nextQuestion();
+    return;
+  }
+  els.loadingMsg.textContent = "Generating your first scenario…";
   show("loading");
+  const myRun = runId;
   try {
-    queue = demo
-      ? [...DEMO_QUESTIONS].sort(() => Math.random() - 0.5)
-      : await generateQuestions({
-          apiKey: els.apiKey.value.trim(),
-          model: els.model.value.trim(),
-          paragraph, lore, count: Number(els.batch.value),
-          previous: [],
-          system: els.systemPrompt.value, userTemplate: els.userPrompt.value,
-          onRetry: () => { els.loadingMsg.textContent = "First reply wasn't usable JSON — retrying once, more strictly…"; },
-        });
+    const first = await generateQuestions({
+      apiKey: els.apiKey.value.trim(),
+      model: els.model.value.trim(),
+      paragraph, lore, count: 1,
+      previous: [],
+      system: els.systemPrompt.value, userTemplate: els.userPrompt.value,
+      onRetry: () => { els.loadingMsg.textContent = "First reply wasn't usable JSON — retrying once, more strictly…"; },
+    });
+    if (!runActive || myRun !== runId) return;
+    queue.push(...first);
   } catch (e) {
+    if (!runActive || myRun !== runId) return;
     show("setup");
     els.setupError.textContent = String(e.message || e);
     if (e.raw) {
@@ -162,6 +180,7 @@ async function startRun(demo) {
   }
   show("play");
   nextQuestion();
+  prefetch(); // background: do not await
 }
 $("generate").addEventListener("click", () => startRun(false));
 $("demo").addEventListener("click", () => {
@@ -172,20 +191,37 @@ $("demo").addEventListener("click", () => {
 $("moreBtn").addEventListener("click", () => startRun(isDemo));
 $("newLoreBtn").addEventListener("click", () => show("setup"));
 
-async function refillIfNeeded() {
-  if (!els.endless.checked || generating || isDemo || queue.length > 3) return;
-  generating = true;
-  try {
-    const more = await generateQuestions({
-      apiKey: els.apiKey.value.trim(), model: els.model.value.trim(),
-      paragraph: els.paragraph.value, lore: els.lore.value, count: Number(els.batch.value),
-      previous: asked.map((q) => q.q),
-      system: els.systemPrompt.value, userTemplate: els.userPrompt.value,
-    });
-    queue.push(...more);
-    els.queue.textContent = `📦 ${queue.length} left`;
-  } catch { /* endless refill failing just ends the run cleanly */ }
-  generating = false;
+async function prefetch() {
+  if (isDemo || !runActive) return;
+  while (runActive && queue.length < 3 && !fetching) {
+    fetching = true;
+    const myRun = runId;
+    try {
+      const one = await generateQuestions({
+        apiKey: els.apiKey.value.trim(), model: els.model.value.trim(),
+        paragraph: els.paragraph.value, lore: els.lore.value, count: 1,
+        previous: [...asked.map((q) => q.q), ...queue.map((q) => q.q)],
+        system: els.systemPrompt.value, userTemplate: els.userPrompt.value,
+      });
+      if (!runActive || myRun !== runId) return;
+      if (one.length) {
+        queue.push(...one);
+        els.queue.textContent = `⏳ ${queue.length} ready`;
+        if (waiting) { waiting = false; nextQuestion(); }
+      }
+    } catch {
+      // Background failure is not fatal: if we're waiting for a question,
+      // say so in place and let Next retry; otherwise retry on next advance.
+      if (waiting) {
+        els.question.textContent = "Couldn't generate the next one. Tap Next to retry.";
+        els.btnTrue.disabled = els.btnFalse.disabled = true;
+        els.nextBtn.classList.remove("hidden");
+      }
+      break;
+    } finally {
+      fetching = false;
+    }
+  }
 }
 
 // --- Play loop ---
@@ -196,12 +232,25 @@ function nextQuestion() {
   els.nextBtn.classList.add("hidden");
   els.xpPop.textContent = "";
   els.btnTrue.disabled = els.btnFalse.disabled = false;
-  if (!queue.length) { showLoreCard(); return; }
+  if (!queue.length) {
+    if (isDemo || !runActive) { showLoreCard(); return; }
+    // No batch to fall back on: wait for the async single-question fetch.
+    waiting = true;
+    current = null;
+    els.question.textContent = "⏳ Generating your next scenario…";
+    els.qCount.textContent = `Q ${asked.length + 1}`;
+    els.queue.textContent = "⏳ next: generating";
+    els.btnTrue.disabled = els.btnFalse.disabled = true;
+    els.nextBtn.classList.remove("hidden");
+    prefetch();
+    return;
+  }
+  waiting = false;
   current = queue[0];
   asked.push(current);
   els.question.textContent = current.q;
   els.qCount.textContent = `Q ${asked.length}`;
-  els.queue.textContent = `📦 ${queue.length} left`;
+  els.queue.textContent = `⏳ ${queue.length} ready`;
   els.progFill.style.width = `${Math.min(100, (totals.answered - (runStart?.answered || 0)) / Math.max(1, asked.length) * 100)}%`;
   els.qCard.classList.remove("shake");
   void els.qCard.offsetWidth; // restart pop animation
@@ -213,10 +262,10 @@ function nextQuestion() {
     els.qTimer.textContent = left > 0 ? `⏱ ${left}s` : "⏱ bonus gone";
     if (left <= 0) clearInterval(timer);
   }, 1000);
-  refillIfNeeded();
+  prefetch();
 }
 function answer(given) {
-  if (!current || answeredNow) return;
+  if (waiting || !current || answeredNow) return;
   answeredNow = true;
   clearInterval(timer);
   const res = answerQuestion(totals, current, given, Date.now() - startMs);
@@ -235,6 +284,7 @@ function answer(given) {
   beep(res.correct);
 }
 function advance() {
+  if (waiting) { nextQuestion(); return; } // retry the async fetch, consume nothing
   queue.shift();
   nextQuestion();
 }
@@ -313,6 +363,8 @@ $("revealCloze").addEventListener("click", () => {
 
 function showLoreCard() {
   clearInterval(timer);
+  runActive = false; // stops the background prefetcher; in-flight fetches are discarded by runId
+  waiting = false;
   buildCloze();
   const answered = totals.answered - (runStart?.answered || 0);
   const correct = totals.correct - (runStart?.correct || 0);

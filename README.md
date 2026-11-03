@@ -34,8 +34,10 @@ asset paths are relative, so the `/lore-rush/` subpath works.
 2. Paste an OpenRouter key (https://openrouter.ai/keys) and pick a model.
    "Load models" fetches the live list, free models first.
    Default suggestion: `openai/gpt-oss-20b:free`.
-3. Generate 10 / 20 / 50 questions. With ∞ Endless on, it auto-refills when
-   the queue gets low — thousands of throwaway questions, none saved.
+3. No batches: the first question is generated, then questions keep being
+   generated one at a time in the background, up to 3 ready ahead, while
+   you answer. It runs until you tap End — thousands of throwaway
+   questions, none saved.
 4. Answer True/False by tap, swipe (right = true, left = false), or keys
    T / F / arrows. Fast answers and streaks earn bonus XP.
 5. Tap "End & open cloze card" and the same paragraph appears with key
