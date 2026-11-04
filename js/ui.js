@@ -15,13 +15,11 @@ export const els = {
   debugBox: $("debugBox"), rawReply: $("rawReply"),
   xp: $("xp"), level: $("level"), title: $("title"), streak: $("streak"), accuracy: $("accuracy"), lvlFill: $("lvlFill"),
   coins: $("coins"), hints: $("hints"), answered: $("answered"),
-  slot1: $("slot1"), slot2: $("slot2"), slot3: $("slot3"), slotMsg: $("slotMsg"),
-  hintBtn: $("hintBtn"), buyHintBtn: $("buyHintBtn"), hintText: $("hintText"),
-  tapBtn: $("tapBtn"), beatDot: $("beatDot"), tapMsg: $("tapMsg"), idleLabel: $("idleLabel"),
-  explainMoreBtn: $("explainMoreBtn"),
-  qCount: $("qCount"), queue: $("queue"), qTimer: $("qTimer"), progFill: $("progFill"), caseType: $("caseType"),
+  hintBtn: $("hintBtn"), hintCount: $("hintCount"), hintText: $("hintText"),
+  askBtn: $("askBtn"), aiExplain: $("aiExplain"), endBtn: $("endBtn"),
+  qCount: $("qCount"), caseType: $("caseType"),
   question: $("question"), qCard: $("qCard"), btnTrue: $("btnTrue"), btnFalse: $("btnFalse"),
-  feedback: $("feedback"), nextBtn: $("nextBtn"), xpPop: $("xpPop"),
+  feedback: $("feedback"),
   clozeText: $("clozeText"), clozeScore: $("clozeScore"), statXp: $("statXp"), statAcc: $("statAcc"), statStreak: $("statStreak"), statAnswered: $("statAnswered"),
   breakdownDetails: $("breakdownDetails"), breakdownList: $("breakdownList"),
   expansionDetails: $("expansionDetails"), expansionText: $("expansionText"), expansionSources: $("expansionSources"), expansionNote: $("expansionNote"),
@@ -45,35 +43,13 @@ export function renderHeader(totals) {
 }
 
 export function updateHintButton(totals) {
-  if (els.hintBtn) els.hintBtn.textContent = `💡 Hint (${totals.hints || 0} left)`;
-  if (els.buyHintBtn) els.buyHintBtn.disabled = (totals.coins || 0) < 10;
+  // Hint marker only: a count, no buy button, no extra controls.
+  if (els.hintCount) els.hintCount.textContent = totals.hints || 0;
 }
 
-// Slot-machine reel: cycles symbols fast, then lands on the final three.
-// Pure outcome is decided in clicker.js; this is only the animation.
-export function spinSlotReel(finalSymbols, onDone) {
-  if (!els.slot1) { onDone(); return; }
-  const symbols = ["⭐", "🍀", "🔥", "💎", "🐱", "⚡"];
-  let n = 0;
-  const iv = setInterval(() => {
-    n += 1;
-    els.slot1.textContent = symbols[Math.floor(Math.random() * symbols.length)];
-    els.slot2.textContent = symbols[Math.floor(Math.random() * symbols.length)];
-    els.slot3.textContent = symbols[Math.floor(Math.random() * symbols.length)];
-    if (n >= 12) {
-      clearInterval(iv);
-      els.slot1.textContent = finalSymbols[0];
-      els.slot2.textContent = finalSymbols[1];
-      els.slot3.textContent = finalSymbols[2];
-      onDone();
-    }
-  }, 80);
-}
-
-export function resetSlots() {
-  if (els.slot1) els.slot1.textContent = els.slot2.textContent = els.slot3.textContent = "?";
-  if (els.slotMsg) els.slotMsg.textContent = "";
+export function resetPlay() {
   if (els.hintText) { els.hintText.textContent = ""; els.hintText.classList.add("hidden"); }
+  if (els.aiExplain) { els.aiExplain.textContent = ""; els.aiExplain.classList.add("hidden"); }
 }
 
 export function renderBreakdown(chunks) {
@@ -101,9 +77,8 @@ export function renderFeedback({ correct, xp, streak, why, answerTrue, showWhy, 
     ? `<br><small>💡 ${styleLabel}: ${why.replace(/</g, "&lt;")}</small>`
     : "";
   els.feedback.innerHTML = correct
-    ? `✓ ${praise} +${xp} XP${streak >= 3 ? ` · 🔥 ${streak} streak!` : ""}${streak % 5 === 0 && streak > 0 ? ` · 🎁 Milestone bonus!` : ""}${whyHtml}`
-    : `✗ ${oops} It was ${answerTrue ? "TRUE" : "FALSE"}.${whyHtml}`;
-  els.xpPop.textContent = correct ? `+${xp} XP` : "";
+    ? `✓ ${praise} +${xp} XP${streak >= 3 ? ` · 🔥 ${streak} streak!` : ""}${streak % 5 === 0 && streak > 0 ? ` · 🎁 Milestone bonus!` : ""}${whyHtml}<br><small>Tap the card for the next one →</small>`
+    : `✗ ${oops} It was ${answerTrue ? "TRUE" : "FALSE"}.${whyHtml}<br><small>Tap the card for the next one →</small>`;
 }
 
 export function setError(msg) {

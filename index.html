@@ -126,15 +126,19 @@
     <p id="loadingMsg">Asking your model to be funny and factual.</p>
   </section>
 
-  <!-- PLAY -->
+  <!-- PLAY: only True / False, ? and a hint marker. Nothing else to tap.
+       Tap the card (or True/False again) after answering to get the next one.
+       The tiny End link in the meta line is the only way out, to the cloze card. -->
   <section id="play" class="card hidden">
     <div class="meta">
       <span id="qCount">Q 1</span>
       <span id="caseType"></span>
-      <span id="queue">⏳ next: generating</span>
-      <span id="qTimer">⏱ 10s</span>
+      <button type="button" id="endBtn" class="endlink">End → cloze</button>
     </div>
-    <div class="progress"><div id="progFill"></div></div>
+    <div class="toprow">
+      <button type="button" id="askBtn" class="round" aria-label="Ask the AI to explain further">?</button>
+      <button type="button" id="hintBtn" class="round" aria-label="Use an earned hint">💡 <b id="hintCount">0</b></button>
+    </div>
     <div id="qCard" class="qcard">
       <p id="question" aria-live="polite"></p>
     </div>
@@ -142,30 +146,9 @@
       <button type="button" id="btnTrue" class="true">✓ TRUE</button>
       <button type="button" id="btnFalse" class="false">✗ FALSE</button>
     </div>
-    <p class="keys">Keys: <kbd>T</kbd> / <kbd>F</kbd> &nbsp;·&nbsp; <kbd>←</kbd> False, <kbd>→</kbd> True &nbsp;·&nbsp; <kbd>Space</kbd> Next</p>
-    <div class="row">
-      <button type="button" id="hintBtn">💡 Hint (0 left)</button>
-      <button type="button" id="buyHintBtn">Buy hint · 10 🪙</button>
-    </div>
     <p id="hintText" class="hint hidden" aria-live="polite"></p>
-    <div class="rhythm">
-      <span id="beatDot" class="beat" aria-hidden="true"></span>
-      <button type="button" id="tapBtn">⚡ Tap to the beat</button>
-      <span id="tapMsg"></span>
-    </div>
-    <p id="idleLabel" class="hint">💤 Idle unlocks at 10 answered questions.</p>
     <div id="feedback" class="feedback hidden" aria-live="polite"></div>
-    <div class="row">
-      <button type="button" id="explainMoreBtn" class="hidden">💡 Request explanation (+3 🪙)</button>
-    </div>
-    <div class="slots" aria-live="polite"><span id="slot1">?</span><span id="slot2">?</span><span id="slot3">?</span></div>
-    <p id="slotMsg" class="hint"></p>
-    <div class="row">
-      <button type="button" id="nextBtn" class="hidden">Next →</button>
-      <button type="button" id="skipBtn">Skip</button>
-      <button type="button" id="revealBtn">🏁 End &amp; open cloze card</button>
-    </div>
-    <div id="xpPop" class="xppop"></div>
+    <p id="aiExplain" class="aiexp hidden" aria-live="polite"></p>
   </section>
 
   <!-- CLOZE CARD -->

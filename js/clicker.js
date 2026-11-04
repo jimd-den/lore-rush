@@ -1,7 +1,8 @@
-// Pure clicker / idle / rhythm gamification. No DOM, no network.
+// Pure clicker / idle gamification. No DOM, no network.
 // This is the "pure" layer: every reward rule lives here as a testable
 // function over a plain state object, so the UI can never invent a payout.
-// XP and streaks stay in game.js; coins, hints, rhythm and slots live here.
+// XP and streaks stay in game.js; coins, hints, idle and slots live here.
+// (Tap-to-the-beat was removed 2026-11-04: it was noise on the play screen.)
 export const SLOT_SYMBOLS = ["⭐", "🍀", "🔥", "💎", "🐱", "⚡"];
 
 export function randomSlots() {
@@ -57,18 +58,6 @@ export function buyHint(state) {
   state.coins -= 10;
   state.hints = (state.hints || 0) + 1;
   return true;
-}
-
-// Rhythm tap: deltaMs is distance to the nearest beat (0-400 for an 800ms beat).
-// Perfect = on the beat, good = close, otherwise a normal tap. A perfect
-// streak (3+) doubles the perfect payout.
-export function rhythmTap(deltaMs, perfectStreak) {
-  if (deltaMs <= 180) {
-    const streak = (perfectStreak || 0) + 1;
-    return { coins: streak >= 3 ? 6 : 3, perfect: true, newStreak: streak, label: streak >= 3 ? "PERFECT x2!" : "PERFECT!" };
-  }
-  if (deltaMs <= 350) return { coins: 2, perfect: false, newStreak: 0, label: "Good tap" };
-  return { coins: 1, perfect: false, newStreak: 0, label: "Tap" };
 }
 
 // Idle: unlocks at 10 answered questions, then pays per 10-second tick.

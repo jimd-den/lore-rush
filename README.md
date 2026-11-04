@@ -54,8 +54,19 @@ asset paths are relative, so the `/lore-rush/` subpath works.
    predict, pick a plan, what goes wrong, everyday parallel), feedback
    phrases vary, and streak milestones pay differently (5-streak +15 XP,
    10-streak +30 XP), so no two runs feel the same.
-5. Answer True/False by tap, swipe (right = true, left = false), or keys
-   T / F / arrows. Fast answers and streaks earn bonus XP.
+5. Play screen, stripped to the point: a question, huge stacked TRUE and
+   FALSE buttons (True beeps high, False beeps low, correct/wrong change
+   the pitch again), a ? button, and a 💡 hint marker with a count.
+   Nothing else to tap. Tap ? to ask the AI to explain further — a real
+   OpenRouter call in your chosen explanation style, with a new example,
+   not just the canned why (before answering it must not give the answer
+   away; after answering it explains why in depth). Tap the card, or
+   True/False again, after answering to get the next question — no Next,
+   Skip, tap-to-beat, buy-hint, timer, queue, or slot box on this screen.
+   Answer True/False by tap, swipe (right = true, left = false), or keys
+   T / F / arrows; after answering, any of those advances. Fast answers
+   and streaks earn bonus XP. The tiny End link is the only way out, to
+   the cloze card.
 6. Tap "End & open cloze card" and the same paragraph appears with key
    words blanked out. Fill them from memory, check for +20 XP per blank,
    or reveal them (no XP). Then go again, same paragraph and lore.
@@ -92,23 +103,22 @@ persist locally.
 - `js/api.js` — adapter: OpenRouter chat + models + JSON parsing + web-researched expansion
 - `js/demo.js` — sample lore + offline demo questions
 - `js/ui.js` — DOM only: element lookup and rendering (no flow, no network)
-- `js/clicker.js` — pure gamification: coins, earned hints, rhythm taps, idle rate, slot outcomes
+- `js/clicker.js` — pure gamification: coins, earned hints, idle rate, slot outcomes (tap-to-beat removed 2026-11-04)
 - `js/main.js` — orchestration only: setup → break/expand → play → cloze card
 
 ## Gamification (pure, not just points)
 
 - **Coins 🪙:** +5 per correct answer, +1 per attempt, +10 for reading an
-  expansion, +3 for requesting an explanation, +1–6 for rhythm taps.
+  expansion, +3 for requesting an AI explanation.
 - **Hints 💡 are earned, never free:** 1 hint per 5 correct answers, or
   buy one for 10 🪙. A hint shows the question's clue — useful, but never
   the answer.
-- **Rhythm tapper:** a beat pulses every 800ms. Tap on the beat for
-  PERFECT (+3 🪙, +6 on a 3+ perfect streak), close for +2, otherwise +1.
-- **Idle:** unlocks at 10 answered questions, then pays 1 🪙 per 10s per
-  10 answered (20 answered = 2/tick, and so on).
-- **Slot machine:** every correct answer spins a 3-symbol reel. Three of
-  a kind = +20 XP +10 🪙 jackpot, a pair = +10 XP +5 🪙, otherwise +1 🪙.
-  The reel never blocks Next.
+- **Idle (silent):** unlocks at 10 answered questions, then pays 1 🪙 per
+  10s per 10 answered (20 answered = 2/tick, and so on). No label on the
+  play screen — coins just grow in the header.
+- **Slot bonus (silent):** every correct answer rolls a 3-symbol slot.
+  Three of a kind = +20 XP +10 🪙 jackpot, a pair = +10 XP +5 🪙,
+  otherwise +1 🪙. It shows as one line in the feedback, never a reel box.
 - **Stats:** header shows XP, coins, hints, level, streak, accuracy, and
   total questions answered.
 

@@ -3,33 +3,26 @@
 // cloze in cloze.js, paragraph splitting in breakdown.js, variety in
 // variety.js. This file wires them together and owns run state only.
 import { answerQuestion, loadTotals, saveTotals } from "./game.js";
-import { fetchModels, generateQuestions, expandParagraph, DEFAULT_SYSTEM, DEFAULT_USER_TEMPLATE, buildMessages } from "./api.js";
+import { fetchModels, generateQuestions, expandParagraph, explainFurther, DEFAULT_SYSTEM, DEFAULT_USER_TEMPLATE, buildMessages } from "./api.js";
 import { SAMPLES, DEMO_QUESTIONS, DEMO_PARAGRAPH } from "./demo.js";
 import { clozeTokens, checkAnswer } from "./cloze.js";
 import { splitParagraph } from "./breakdown.js";
 import { shuffledCaseTypes, pick, PRAISE, OOPS } from "./variety.js";
-import { els, show, renderHeader, renderBreakdown, renderExpansion, renderFeedback, setError, showRaw, spinSlotReel, resetSlots, updateHintButton } from "./ui.js";
-import { randomSlots, evaluateSlots, earnForAnswer, earnForReading, earnForExplanationRequest, useHint, buyHint, rhythmTap, idleRate } from "./clicker.js";
+import { els, show, renderHeader, renderBreakdown, renderExpansion, renderFeedback, setError, showRaw, resetPlay } from "./ui.js";
+import { randomSlots, evaluateSlots, earnForAnswer, earnForReading, earnForExplanationRequest, useHint, idleRate } from "./clicker.js";
 
 let totals = loadTotals();
-let queue = [], asked = [], current = null, startMs = 0, timer = null, answeredNow = false;
+let queue = [], asked = [], current = null, startMs = 0, answeredNow = false;
 let runStart = null, isDemo = false, touchX = null;
 let runId = 0, runActive = false, fetching = false, waiting = false;
 let clozeInputs = [], awardedCloze = new Set();
 // Expansion + variety state for the current run (session only, not saved).
 let expansionText = "", expansionSources = [], caseOrder = [], caseIndex = 0;
 let expansionReadAwarded = false, explainRequested = false;
-let perfectStreak = 0, lastBeat = Date.now();
-// Rhythm beat: 800ms pulse. Tapping on the pulse pays more (see clicker.js).
-setInterval(() => {
-  lastBeat = Date.now();
-  if (els.beatDot) { els.beatDot.classList.add("pulse"); setTimeout(() => els.beatDot.classList.remove("pulse"), 220); }
-}, 800);
 // Idle: pays only once unlocked (10 answered), per clicker.js idleRate.
 setInterval(() => {
   const rate = idleRate(totals.answered);
-  if (els.idleLabel) els.idleLabel.textContent = rate > 0 ? `💤 Idle: +${rate} 🪙 per 10s` : "💤 Idle unlocks at 10 answered questions.";
-  if (rate <= 0) return;
+  if (rate <= 0) return; // idle pays silently now: no idle label on the play screen
   totals.coins = (totals.coins || 0) + rate;
   saveTotals(totals);
   renderHeader(totals);
@@ -41,13 +34,16 @@ function nextCaseType() {
   caseIndex += 1;
   return t;
 }
-function beep(ok) {
+// True and False beep differently, and correct/wrong beep differently again:
+// True+correct 880, False+correct 660, True+wrong 220, False+wrong 180.
+function beepFor(given, correct) {
   try {
+    const freq = correct ? (given ? 880 : 660) : (given ? 220 : 180);
     const ctx = new (window.AudioContext || window.webkitAudioContext)();
     const o = ctx.createOscillator(), g = ctx.createGain();
     o.connect(g); g.connect(ctx.destination);
-    o.frequency.value = ok ? 660 : 180; g.gain.value = 0.06;
-    o.start(); o.stop(ctx.currentTime + 0.12);
+    o.frequency.value = freq; g.gain.value = 0.08;
+    o.start(); o.stop(ctx.currentTime + 0.15);
   } catch { /* sound is garnish, never a blocker */ }
 }
 
@@ -250,14 +246,12 @@ async function prefetch() {
       if (!runActive || myRun !== runId) return;
       if (one.length) {
         queue.push(...one.map((q) => ({ ...q, _type: type })));
-        els.queue.textContent = `⏳ ${queue.length} ready`;
         if (waiting) { waiting = false; nextQuestion(); }
       }
     } catch {
       if (waiting) {
-        els.question.textContent = "Couldn't generate the next one. Tap Next to retry.";
+        els.question.textContent = "Couldn't generate the next one. Tap the card to retry.";
         els.btnTrue.disabled = els.btnFalse.disabled = true;
-        els.nextBtn.classList.remove("hidden");
       }
       break;
     } finally {
@@ -268,15 +262,10 @@ async function prefetch() {
 
 // --- Play loop ---
 function nextQuestion() {
-  clearInterval(timer);
   answeredNow = false;
   explainRequested = false;
   els.feedback.classList.add("hidden");
-  els.nextBtn.classList.add("hidden");
-  els.explainMoreBtn.classList.add("hidden");
-  els.explainMoreBtn.disabled = false;
-  resetSlots();
-  els.xpPop.textContent = "";
+  resetPlay();
   els.btnTrue.disabled = els.btnFalse.disabled = false;
   if (!queue.length) {
     if (isDemo || !runActive) { showLoreCard(); return; }
@@ -284,9 +273,7 @@ function nextQuestion() {
     current = null;
     els.question.textContent = "⏳ Generating your next case study…";
     els.qCount.textContent = `Q ${asked.length + 1}`;
-    els.queue.textContent = "⏳ next: generating";
     els.btnTrue.disabled = els.btnFalse.disabled = true;
-    els.nextBtn.classList.remove("hidden");
     prefetch();
     return;
   }
@@ -296,29 +283,19 @@ function nextQuestion() {
   els.question.textContent = current.q;
   els.qCount.textContent = `Q ${asked.length}`;
   els.caseType.textContent = current._type ? `${current._type.emoji} ${current._type.label}` : "";
-  els.queue.textContent = `⏳ ${queue.length} ready`;
-  els.progFill.style.width = `${Math.min(100, (totals.answered - (runStart?.answered || 0)) / Math.max(1, asked.length) * 100)}%`;
   els.qCard.classList.remove("shake");
   void els.qCard.offsetWidth;
   startMs = Date.now();
-  let left = 10;
-  els.qTimer.textContent = "⏱ 10s";
-  timer = setInterval(() => {
-    left -= 1;
-    els.qTimer.textContent = left > 0 ? `⏱ ${left}s` : "⏱ bonus gone";
-    if (left <= 0) clearInterval(timer);
-  }, 1000);
   prefetch();
 }
 function answer(given) {
   if (waiting || !current || answeredNow) return;
   answeredNow = true;
-  clearInterval(timer);
   const res = answerQuestion(totals, current, given, Date.now() - startMs);
   const earn = earnForAnswer(totals, res.correct);
   saveTotals(totals);
   renderHeader(totals);
-  els.explainMoreBtn.classList.remove("hidden");
+
   els.btnTrue.disabled = els.btnFalse.disabled = true;
   const styleKey = els.explainStyle.value;
   const styleLabel = { eli5: "ELI5", plain: "Plain", story: "Story", analogy: "Analogy", straight: "Straight" }[styleKey] || "ELI5";
@@ -328,30 +305,26 @@ function answer(given) {
     praise: pick(PRAISE), oops: pick(OOPS), styleLabel,
   });
   if (!res.correct) els.qCard.classList.add("shake");
-  els.xpPop.textContent = res.correct ? `+${res.xp} XP +${earn.coins} 🪙${earn.hintEarned ? " +1 💡 hint earned!" : ""}` : `+${earn.coins} 🪙`;
-  // Slot-machine reel on a correct answer: pure outcome in clicker.js,
-  // animation in ui.js. It never blocks Next — the bonus lands when it stops.
+  // Slot bonus, instant now: no reel box on the play screen, just one line
+  // in the feedback. It never blocks advancing.
+  let slotLine = "";
   if (res.correct) {
-    const final = randomSlots();
-    spinSlotReel(final, () => {
-      const bonus = evaluateSlots(final);
-      if (bonus.xp) totals.xp += bonus.xp;
-      totals.coins = (totals.coins || 0) + bonus.coins;
-      totals.level = Math.floor(totals.xp / 100) + 1;
-      saveTotals(totals);
-      renderHeader(totals);
-      els.slotMsg.textContent = `${bonus.label} +${bonus.xp} XP +${bonus.coins} 🪙`;
-    });
+    const bonus = evaluateSlots(randomSlots());
+    if (bonus.xp) totals.xp += bonus.xp;
+    totals.coins = (totals.coins || 0) + bonus.coins;
+    totals.level = Math.floor(totals.xp / 100) + 1;
+    saveTotals(totals);
+    renderHeader(totals);
+    slotLine = `<br><small>${bonus.label} +${bonus.xp} XP +${bonus.coins} 🪙</small>`;
   }
-  els.nextBtn.classList.remove("hidden");
-  els.nextBtn.focus();
-  beep(res.correct);
+  els.feedback.innerHTML += `<br><small>+${res.xp} XP +${earn.coins} 🪙${earn.hintEarned ? " +1 💡 hint earned!" : ""}</small>${slotLine}`;
+  beepFor(given, res.correct);
 }
-// Hint (earned, never free) + buy + rhythm tap + request explanation.
+// Hint (earned, never free) and ? (real AI explanation, further).
 els.hintBtn.addEventListener("click", () => {
   if (!current || answeredNow) return;
   if (!useHint(totals)) {
-    els.hintText.textContent = "No hints left — earn 1 per 5 correct answers, or buy one for 10 🪙.";
+    els.hintText.textContent = "No hints left — earn 1 per 5 correct answers.";
     els.hintText.classList.remove("hidden");
     return;
   }
@@ -360,38 +333,28 @@ els.hintBtn.addEventListener("click", () => {
   els.hintText.textContent = current.hint || "Think about what the rule actually requires, not what sounds fancy.";
   els.hintText.classList.remove("hidden");
 });
-els.buyHintBtn.addEventListener("click", () => {
-  if (!buyHint(totals)) {
-    els.hintText.textContent = "Need 10 🪙 — answer more questions, tap to the beat, or read an expansion.";
-    els.hintText.classList.remove("hidden");
-    return;
-  }
-  saveTotals(totals);
-  renderHeader(totals);
-  els.hintText.textContent = "Hint bought! Tap Hint to use it.";
-  els.hintText.classList.remove("hidden");
-});
-els.tapBtn.addEventListener("click", () => {
-  const elapsed = (Date.now() - lastBeat) % 800;
-  const delta = Math.min(elapsed, 800 - elapsed);
-  const r = rhythmTap(delta, perfectStreak);
-  perfectStreak = r.newStreak;
-  totals.coins = (totals.coins || 0) + r.coins;
-  saveTotals(totals);
-  renderHeader(totals);
-  els.tapMsg.textContent = `${r.label} +${r.coins} 🪙`;
-});
-els.explainMoreBtn.addEventListener("click", () => {
+els.askBtn.addEventListener("click", async () => {
   if (!current || explainRequested) return;
   explainRequested = true;
-  els.explainMoreBtn.disabled = true;
   const earn = earnForExplanationRequest(totals);
   saveTotals(totals);
   renderHeader(totals);
-  if (!els.showWhy.checked && current.why) {
-    els.feedback.innerHTML += `<br><small>💡 Explanation: ${current.why.replace(/</g, "&lt;")}</small>`;
-  } else {
-    els.feedback.innerHTML += `<br><small>💡 Good asking! +${earn.coins} 🪙 for requesting an explanation.</small>`;
+  els.aiExplain.textContent = "💡 Asking the AI to explain further…";
+  els.aiExplain.classList.remove("hidden");
+  if (isDemo) {
+    els.aiExplain.textContent = `💡 ${current.why || "No short explanation for this one."} (+${earn.coins} 🪙 for asking)`;
+    return;
+  }
+  try {
+    const text = await explainFurther({
+      apiKey: els.apiKey.value.trim(), model: els.model.value.trim(),
+      paragraph: els.paragraph.value, expansion: expansionText,
+      question: current, answer: current.a, why: current.why,
+      explainStyle: els.explainStyle.value, answered: answeredNow,
+    });
+    els.aiExplain.textContent = `💡 ${text} (+${earn.coins} 🪙 for asking)`;
+  } catch (e) {
+    els.aiExplain.textContent = `💡 ${current.why || "No short explanation for this one."} (AI explanation failed: ${String(e.message || e)})`;
   }
 });
 function advance() {
@@ -399,11 +362,12 @@ function advance() {
   queue.shift();
   nextQuestion();
 }
-els.btnTrue.addEventListener("click", () => answer(true));
-els.btnFalse.addEventListener("click", () => answer(false));
-els.nextBtn.addEventListener("click", advance);
-document.getElementById("skipBtn").addEventListener("click", advance);
-document.getElementById("revealBtn").addEventListener("click", showLoreCard);
+// True/False tap: first tap answers, second tap (after answering) advances.
+// That, plus tapping the card, is the whole advance mechanism — no Next button.
+els.btnTrue.addEventListener("click", () => { if (answeredNow) advance(); else answer(true); });
+els.btnFalse.addEventListener("click", () => { if (answeredNow) advance(); else answer(false); });
+els.qCard.addEventListener("click", () => { if (answeredNow) advance(); });
+els.endBtn.addEventListener("click", showLoreCard);
 els.qCard.addEventListener("touchstart", (e) => { touchX = e.changedTouches[0].clientX; }, { passive: true });
 els.qCard.addEventListener("touchend", (e) => {
   if (touchX == null) return;
@@ -413,9 +377,9 @@ els.qCard.addEventListener("touchend", (e) => {
 });
 document.addEventListener("keydown", (e) => {
   if (els.play.classList.contains("hidden")) return;
+  if (answeredNow) { if (["t", "T", "f", "F", "ArrowRight", "ArrowLeft", " ", "Enter"].includes(e.key)) { e.preventDefault(); advance(); } return; }
   if (e.key === "t" || e.key === "T" || e.key === "ArrowRight") answer(true);
   else if (e.key === "f" || e.key === "F" || e.key === "ArrowLeft") answer(false);
-  else if ((e.key === " " || e.key === "Enter") && answeredNow) { e.preventDefault(); advance(); }
 });
 
 // Cloze card: the same paragraph the case studies tested, blanked for recall.
@@ -471,7 +435,6 @@ document.getElementById("revealCloze").addEventListener("click", () => {
 });
 
 function showLoreCard() {
-  clearInterval(timer);
   runActive = false;
   waiting = false;
   buildCloze();

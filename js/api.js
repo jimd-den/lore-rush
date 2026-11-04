@@ -202,6 +202,27 @@ export async function generateQuestions({ apiKey, model, paragraph, lore, expans
   throw err;
 }
 
+// ---- Explain further: a real AI call, not revealing the canned why ----
+// The ? button calls this. It explains the idea behind the current case
+// in the chosen style, with a new everyday example. Before answering it
+// must NOT state whether the case is true or false; after answering it
+// explains why that answer is right, in depth.
+export async function explainFurther({ apiKey, model, paragraph, expansion, question, answer, why, explainStyle = "eli5", answered = false }) {
+  if (!apiKey) throw new Error("Add an OpenRouter API key for AI explanations.");
+  if (!question) throw new Error("No current question to explain.");
+  // Answer may come as a separate param (main.js) or on the question itself.
+  if (answer === undefined) answer = question.a;
+  const style = EXPLAIN_STYLES[explainStyle] || EXPLAIN_STYLES.eli5;
+  const messages = [
+    { role: "system", content: `Explain a case study further. Style: ${style} Explain the idea itself, in plain words, with a new everyday example and what to watch for next time. Do not just repeat the paragraph, and do not just repeat the short explanation. ${answered ? "The player has already answered, so explain in depth why the answer below is right." : "The player has NOT answered yet, so you must NOT state whether the case is true or false, and must not give the answer away — explain only the concepts involved."}` },
+    { role: "user", content: `PARAGRAPH:\n${(paragraph || "").slice(0, 3000)}\n\nLAYMAN'S EXPANSION:\n${(expansion || "None.").slice(0, 3000)}\n\nCASE STUDY:\n${question.q}\n\nSHORT EXPLANATION SO FAR:\n${why || "(none)"}\n\n${answered ? `THE ANSWER WAS: ${answer ? "TRUE" : "FALSE"}. Explain further.` : "Explain the ideas in this case further, without giving the answer."}` },
+  ];
+  const res = await requestOnce({ apiKey, model, messages, temperature: 0.7, maxTokens: 800, plugins: null });
+  const text = res.raw.trim();
+  if (!text) throw new Error("AI explanation came back empty.");
+  return text;
+}
+
 // ---- Layman's expansion: research, not a summary ----
 // Uses OpenRouter's web plugin when asked (plugins: [{id: "web"}]).
 // Note the cost honestly in the UI: web search charges even on free
