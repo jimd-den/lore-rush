@@ -11,12 +11,12 @@ export const DEMO_PARAGRAPH = `Photosynthesis is how plants make their own food.
 // (photosynthesis), dressed in the cat lore above. Lore is flavor, paragraph
 // decides the answer. The paragraph itself reappears at the end, as a cloze card.
 export const DEMO_QUESTIONS = [
-  { q: "Mira wants a plant to make food, so she parks it in sunlight, gives it air and water, and waits for it to cook up glucose. Sound plan?", a: true, why: "Sunlight + CO2 + water = glucose. Mira is basically a botanist now." },
-  { q: "Mira tells a seedling: skip the sunlight, just drink extra water and you'll photosynthesize fine.", a: false, why: "No sunlight, no photosynthesis. Water alone is just a bath." },
-  { q: "A librarian claims plants breathe out glucose and breathe in oxygen to make food.", a: false, why: "Backwards! Plants take in CO2 and release oxygen; glucose is the food they keep." },
-  { q: "Mira puts a plant by the globe, where chlorophyll in its leaves can catch sunlight.", a: true, why: "Chlorophyll is the sunlight-catcher. Globe placement is optional but stylish." },
-  { q: "Mira waters a plant's leaves and expects its roots to stay dry, since roots don't matter here.", a: false, why: "Roots absorb the water. Leaves catch light. Everyone has a job." },
-  { q: "After photosynthesizing all afternoon, a plant has made glucose for energy and oxygen as a byproduct.", a: true, why: "Exactly the deal: food kept, oxygen shared with breathers like us." },
-  { q: "Mira reasons: since animals need oxygen, plants must be making it on purpose for cats.", a: false, why: "Oxygen is a byproduct, not a gift service. Cats just benefit." },
-  { q: "A pigeon argues plants eat soil like animals eat dinner, so sunlight is irrelevant.", a: false, why: "Plants make their own food from sunlight, CO2 and water. Pigeons remain unreliable narrators." },
+  { q: "Mira wants a plant to make food, so she parks it in sunlight, gives it air and water, and waits for it to cook up glucose. Sound plan?", a: true, why: "Sunlight + CO2 + water = glucose. Mira is basically a botanist now." , hint: "Think about what a plant needs, all together, not just one ingredient." },
+  { q: "Mira tells a seedling: skip the sunlight, just drink extra water and you'll photosynthesize fine.", a: false, why: "No sunlight, no photosynthesis. Water alone is just a bath." , hint: "What is the one input you cannot replace with more of another?" },
+  { q: "A librarian claims plants breathe out glucose and breathe in oxygen to make food.", a: false, why: "Backwards! Plants take in CO2 and release oxygen; glucose is the food they keep." , hint: "Which gas goes in, which gas comes out, and what stays inside as food?" },
+  { q: "Mira puts a plant by the globe, where chlorophyll in its leaves can catch sunlight.", a: true, why: "Chlorophyll is the sunlight-catcher. Globe placement is optional but stylish." , hint: "What part of the leaf catches the light?" },
+  { q: "Mira waters a plant's leaves and expects its roots to stay dry, since roots don't matter here.", a: false, why: "Roots absorb the water. Leaves catch light. Everyone has a job." , hint: "Which part of the plant is built to drink?" },
+  { q: "After photosynthesizing all afternoon, a plant has made glucose for energy and oxygen as a byproduct.", a: true, why: "Exactly the deal: food kept, oxygen shared with breathers like us." , hint: "What does the plant keep, and what does it let go?" },
+  { q: "Mira reasons: since animals need oxygen, plants must be making it on purpose for cats.", a: false, why: "Oxygen is a byproduct, not a gift service. Cats just benefit." , hint: "Is oxygen the plant's goal, or a side effect of making food?" },
+  { q: "A pigeon argues plants eat soil like animals eat dinner, so sunlight is irrelevant.", a: false, why: "Plants make their own food from sunlight, CO2 and water. Pigeons remain unreliable narrators." , hint: "Do plants eat like animals, or make food from light, air and water?" },
 ];

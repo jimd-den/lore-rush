@@ -1,8 +1,10 @@
 # Lore Rush ⚡
 
-Ultrasmall, mobile-first, no-build web app. Paste a paragraph, pick a lore
-book for flavor, and get throwaway True/False silly scenario questions with
-OpenRouter, answer fast, then unlock the paragraph as a cloze card.
+Ultrasmall, mobile-first, large-format, no-build web app. Paste a paragraph,
+break it into ideas, expand it in plain words with web research, then play
+throwaway True/False case studies with OpenRouter — no "according to the
+text" questions, because you probably haven't read it yet — answer fast,
+then unlock the paragraph as a cloze card.
 
 ## Deploy to GitHub Pages
 
@@ -24,23 +26,37 @@ asset paths are relative, so the `/lore-rush/` subpath works.
 ## How it plays
 
 1. Paste the paragraph material you want to learn, then pick a lore book
-   (or tap a sample, or pick from your saved lore library). The questions
-   are silly use-case scenarios OF the paragraph, dressed in the lore world:
-   lore is inspiration/flavor only, the paragraph decides every answer.
-   Open "Prompt — visible & editable" to see and edit exactly what gets
-   sent (system prompt + user template with {paragraph} {lore} {count}
-   {previous} {seed}); it saves on this device, and "Preview final prompt"
-   shows it with your inputs filled in. "Reset prompt" restores defaults.
-2. Paste an OpenRouter key (https://openrouter.ai/keys) and pick a model.
+   (or tap a sample, or pick from your saved lore library). Tap "Break it
+   down" to split the paragraph into bite-size ideas, and "Expand in plain
+   words" for a web-researched layman's expansion — NOT a summary: it keeps
+   every idea, explains it in plain words, adds an everyday example, why it
+   matters, tricky words, and what people get wrong, with web sources listed
+   when available. Web search uses OpenRouter's web plugin and costs a few
+   cents per request even on free models; if a model can't do web search,
+   the expansion falls back to paragraph-only and says so.
+2. Pick an explanation style (ELI5, Plain, Story, Analogy, Straight) and
+   whether explanations show after each answer at all — explanations explain
+   the idea itself, never just "because the paragraph says so". Open
+   "Prompt — visible & editable" (closed by default, like all dropdowns)
+   to see and edit exactly what gets sent (system prompt + user template
+   with {paragraph} {expansion} {lore} {count} {previous} {seed}
+   {explainStyle} {caseType}); it saves on this device, and "Preview final
+   prompt" shows it with your inputs filled in. "Reset prompt" restores
+   defaults.
+3. Paste an OpenRouter key (https://openrouter.ai/keys) and pick a model.
    "Load models" fetches the live list, free models first.
    Default suggestion: `openai/gpt-oss-20b:free`.
-3. No batches: the first question is generated, then questions keep being
-   generated one at a time in the background, up to 3 ready ahead, while
-   you answer. It runs until you tap End — thousands of throwaway
-   questions, none saved.
-4. Answer True/False by tap, swipe (right = true, left = false), or keys
+4. No batches: the first case study is generated, then case studies keep
+   being generated one at a time in the background, up to 3 ready ahead,
+   while you answer. Each case study is standalone — a named person in a
+   concrete situation, with the facts needed inside the case — never
+   "according to the text". Case types rotate per run (spot the mistake,
+   predict, pick a plan, what goes wrong, everyday parallel), feedback
+   phrases vary, and streak milestones pay differently (5-streak +15 XP,
+   10-streak +30 XP), so no two runs feel the same.
+5. Answer True/False by tap, swipe (right = true, left = false), or keys
    T / F / arrows. Fast answers and streaks earn bonus XP.
-5. Tap "End & open cloze card" and the same paragraph appears with key
+6. Tap "End & open cloze card" and the same paragraph appears with key
    words blanked out. Fill them from memory, check for +20 XP per blank,
    or reveal them (no XP). Then go again, same paragraph and lore.
 
@@ -65,14 +81,35 @@ browser's localStorage and is sent only to `openrouter.ai`. Lore you save
 stays in localStorage on that device. Totals (XP / level / streak) also
 persist locally.
 
-## Clean architecture (4 files, 0 dependencies)
+## Clean architecture (separated concerns, 0 dependencies)
 
-- `index.html` — structure only, one screen at a time
-- `style.css` — mobile-first; desktop is a single `@media(min-width:640px)` enhancement
+- `index.html` — structure only, one screen at a time, large format, big buttons/text
+- `style.css` — mobile-first large format; desktop is a single `@media(min-width:640px)` enhancement
 - `js/game.js` — pure domain: scoring, streaks, levels, titles (no DOM, no network)
 - `js/cloze.js` — pure cloze logic: picks long, non-stopword, evenly spaced words to blank
-- `js/api.js` — adapter: OpenRouter chat + models + JSON parsing
+- `js/breakdown.js` — pure paragraph splitter: sentences into 1-2 sentence idea chunks
+- `js/variety.js` — pure variety: rotating case types, feedback phrases, streak milestones
+- `js/api.js` — adapter: OpenRouter chat + models + JSON parsing + web-researched expansion
 - `js/demo.js` — sample lore + offline demo questions
-- `js/main.js` — UI wiring only: setup → generate → play → lore card
+- `js/ui.js` — DOM only: element lookup and rendering (no flow, no network)
+- `js/clicker.js` — pure gamification: coins, earned hints, rhythm taps, idle rate, slot outcomes
+- `js/main.js` — orchestration only: setup → break/expand → play → cloze card
 
-Total: ~650 lines. No framework, no build, no bundler to break.
+## Gamification (pure, not just points)
+
+- **Coins 🪙:** +5 per correct answer, +1 per attempt, +10 for reading an
+  expansion, +3 for requesting an explanation, +1–6 for rhythm taps.
+- **Hints 💡 are earned, never free:** 1 hint per 5 correct answers, or
+  buy one for 10 🪙. A hint shows the question's clue — useful, but never
+  the answer.
+- **Rhythm tapper:** a beat pulses every 800ms. Tap on the beat for
+  PERFECT (+3 🪙, +6 on a 3+ perfect streak), close for +2, otherwise +1.
+- **Idle:** unlocks at 10 answered questions, then pays 1 🪙 per 10s per
+  10 answered (20 answered = 2/tick, and so on).
+- **Slot machine:** every correct answer spins a 3-symbol reel. Three of
+  a kind = +20 XP +10 🪙 jackpot, a pair = +10 XP +5 🪙, otherwise +1 🪙.
+  The reel never blocks Next.
+- **Stats:** header shows XP, coins, hints, level, streak, accuracy, and
+  total questions answered.
+
+No framework, no build, no bundler to break.

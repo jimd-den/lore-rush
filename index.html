@@ -12,9 +12,12 @@
   <div class="logo">⚡ LORE RUSH</div>
   <div class="stats" aria-label="Your score">
     <span>⭐ <b id="xp">0</b> XP</span>
+    <span>🪙 <b id="coins">0</b></span>
+    <span>💡 <b id="hints">0</b></span>
     <span>LVL <b id="level">1</b> <small id="title">Newbie</small></span>
     <span>🔥 <b id="streak">0</b></span>
     <span>🎯 <b id="accuracy">—</b></span>
+    <span>📚 <b id="answered">0</b> answered</span>
   </div>
   <div class="lvlbar"><div id="lvlFill"></div></div>
 </header>
@@ -22,12 +25,28 @@
 <main>
   <!-- SETUP -->
   <section id="setup" class="card">
-    <h1>Paste a paragraph. Get silly scenarios.<br><span>Answer fast. Unlock the cloze card.</span></h1>
-    <p class="sub">The silly questions are use-case scenarios <em>of your paragraph</em> — dressed up in a lore world, but testing the paragraph, not the lore. Then the paragraph itself becomes the cloze card at the end. Throwaway questions, no saving, just a dopamine loop. Your key never leaves your browser except to OpenRouter.</p>
+    <h1>Paste a paragraph. Get case studies.<br><span>Answer fast. Unlock the cloze card.</span></h1>
+    <p class="steps">1 Break it down · 2 Expand in plain words · 3 Play case studies · 4 Cloze card</p>
+    <p class="sub">No "according to the text" questions — you probably haven't read it yet. Instead: break the paragraph into ideas, expand it in plain words with web research, then play standalone case studies that teach the idea as you answer. Then the paragraph itself becomes the cloze card at the end. Your key never leaves your browser except to OpenRouter.</p>
 
     <label>1 · Paragraph material — the stuff to learn
       <textarea id="paragraph" rows="5" placeholder="Paste the paragraph you actually want to learn, word for word…"></textarea>
     </label>
+    <div class="row">
+      <button type="button" id="breakBtn">🧩 Break it down</button>
+      <button type="button" id="expandBtn">🔍 Expand in plain words</button>
+    </div>
+    <details id="breakdownDetails" class="hidden">
+      <summary>Paragraph, broken into ideas</summary>
+      <ol id="breakdownList"></ol>
+    </details>
+    <details id="expansionDetails" class="hidden">
+      <summary>Layman's expansion — researched, not a summary</summary>
+      <p id="expansionText" class="expansion"></p>
+      <ul id="expansionSources"></ul>
+      <p id="expansionNote" class="hint"></p>
+      <button type="button" id="clearExpansion">Clear expansion</button>
+    </details>
 
     <label>2 · Lore book — inspiration for the scenarios (flavor only, not facts)
       <select id="library"></select>
@@ -43,8 +62,8 @@
     </label>
     <p class="hint">Rule the model must follow: lore sets the scene, the paragraph sets the answer. A scenario is TRUE only if it correctly applies the paragraph.</p>
 
-    <details open>
-      <summary>✏️ Prompt — visible &amp; editable</summary>
+    <details>
+      <summary>✏️ Prompt — visible &amp; editable (closed by default)</summary>
       <p class="hint">This is exactly what gets sent on the first attempt, except the {placeholders} get filled in with your paragraph, lore, count, and previous questions. Edit it, and it stays saved on this device. If a model won't return JSON, try shortening the paragraph, switching models, or adding: "Your entire reply must be ONLY the JSON array."</p>
       <label>System prompt
         <textarea id="systemPrompt" rows="9"></textarea>
@@ -78,8 +97,19 @@
           <option value="unhinged" selected>Unhinged</option>
         </select>
       </label>
+      <label>Explanation style
+        <select id="explainStyle">
+          <option value="eli5" selected>ELI5 — like I'm 5</option>
+          <option value="plain">Plain — simple, direct</option>
+          <option value="story">Story — tiny story</option>
+          <option value="analogy">Analogy — everyday comparison</option>
+          <option value="straight">Straight — just the idea</option>
+        </select>
+      </label>
+      <label class="check"><input type="checkbox" id="showWhy" checked> Show explanations after each answer (optional)</label>
+      <label class="check"><input type="checkbox" id="webSearch" checked> 🔍 Web research for the expansion (small extra cost even on free models)</label>
     </div>
-    <p class="hint">No batches: questions are made <b>one at a time, in the background</b> — you answer the first while the next ones are being generated. Tap End anytime to open the cloze card.</p>
+    <p class="hint">No batches: case studies are made <b>one at a time, in the background</b>, in rotating types — spot the mistake, predict, pick a plan, what goes wrong, everyday parallel — so no two runs feel the same. Tap End anytime to open the cloze card.</p>
 
     <div class="row">
       <button type="button" id="fetchModels">↻ Load models</button>
@@ -100,6 +130,7 @@
   <section id="play" class="card hidden">
     <div class="meta">
       <span id="qCount">Q 1</span>
+      <span id="caseType"></span>
       <span id="queue">⏳ next: generating</span>
       <span id="qTimer">⏱ 10s</span>
     </div>
@@ -112,7 +143,23 @@
       <button type="button" id="btnFalse" class="false">✗ FALSE</button>
     </div>
     <p class="keys">Keys: <kbd>T</kbd> / <kbd>F</kbd> &nbsp;·&nbsp; <kbd>←</kbd> False, <kbd>→</kbd> True &nbsp;·&nbsp; <kbd>Space</kbd> Next</p>
+    <div class="row">
+      <button type="button" id="hintBtn">💡 Hint (0 left)</button>
+      <button type="button" id="buyHintBtn">Buy hint · 10 🪙</button>
+    </div>
+    <p id="hintText" class="hint hidden" aria-live="polite"></p>
+    <div class="rhythm">
+      <span id="beatDot" class="beat" aria-hidden="true"></span>
+      <button type="button" id="tapBtn">⚡ Tap to the beat</button>
+      <span id="tapMsg"></span>
+    </div>
+    <p id="idleLabel" class="hint">💤 Idle unlocks at 10 answered questions.</p>
     <div id="feedback" class="feedback hidden" aria-live="polite"></div>
+    <div class="row">
+      <button type="button" id="explainMoreBtn" class="hidden">💡 Request explanation (+3 🪙)</button>
+    </div>
+    <div class="slots" aria-live="polite"><span id="slot1">?</span><span id="slot2">?</span><span id="slot3">?</span></div>
+    <p id="slotMsg" class="hint"></p>
     <div class="row">
       <button type="button" id="nextBtn" class="hidden">Next →</button>
       <button type="button" id="skipBtn">Skip</button>
